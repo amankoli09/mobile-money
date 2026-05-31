@@ -14,6 +14,7 @@
 //   NATS_ENABLED   — publish to NATS JetStream (default: false)
 //   REDIS_STREAM   — stream key (default: callbacks)
 //   NATS_SUBJECT   — NATS subject (default: callbacks.ingest)
+//   SENTRY_DSN     — Sentry DSN for error tracking
 
 package main
 
@@ -26,6 +27,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/nats-io/nats.go"
 	"github.com/redis/go-redis/v9"
 	"github.com/valyala/fastjson"
@@ -51,6 +53,7 @@ var (
 	natsEnabled  = getEnv("NATS_ENABLED", "false") == "true"
 	redisStream  = getEnv("REDIS_STREAM", "callbacks")
 	natsSubject  = getEnv("NATS_SUBJECT", "callbacks.ingest")
+	sentryDSN    = getEnv("SENTRY_DSN", "")
 )
 
 // ---------------------------------------------------------------------------
@@ -279,6 +282,7 @@ func handleIngest(ctx *fasthttp.RequestCtx) {
 	}
 
 	if err := publish(&payload); err != nil {
+		sentry.CaptureException(err)
 		log.Printf("[ingest] publish error: %v", err)
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString(`{"error":"publish failed"}`)
@@ -334,7 +338,22 @@ func router(ctx *fasthttp.RequestCtx) {
 // ---------------------------------------------------------------------------
 
 func main() {
+	if sentryDSN != "" {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn:              sentryDSN,
+			TracesSampleRate: 1.0,
+			Environment:      getEnv("NODE_ENV", "development"),
+		})
+		if err != nil {
+			log.Printf("Sentry initialization failed: %v", err)
+		} else {
+			log.Printf("[sentry] initialized for environment: %s", getEnv("NODE_ENV", "development"))
+			defer sentry.Flush(2 * time.Second)
+		}
+	}
+
 	if err := initMessaging(); err != nil {
+		sentry.CaptureException(err)
 		log.Fatalf("[ingest-go] messaging init failed: %v", err)
 	}
 
@@ -351,6 +370,7 @@ func main() {
 	}
 
 	if err := server.ListenAndServe(addr); err != nil {
+		sentry.CaptureException(err)
 		log.Fatalf("[ingest-go] server error: %v", err)
 	}
 }

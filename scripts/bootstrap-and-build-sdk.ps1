@@ -61,15 +61,15 @@ function Ensure-JDK17 {
     $javaHome = $jdkDir.FullName
     Write-Host "Using downloaded JDK at $javaHome"
 
-+    # Validate that the downloaded JDK provides a working java.exe
-+    $javaExe = Join-Path $javaHome 'bin\java.exe'
-+    if (-not (Test-Path $javaExe)) { throw "Downloaded JDK does not contain java executable: $javaExe" }
-+    $verOut = & $javaExe -version 2>&1 | Select-Object -First 1
-+    Write-Host "Downloaded JDK java -version: $verOut"
-+
-+    # Set for this process
-+    $env:JAVA_HOME = $javaHome
-+    $env:Path = (Join-Path $javaHome 'bin') + ';' + $env:Path
+    # Validate that the downloaded JDK provides a working java.exe
+    $javaExe = Join-Path $javaHome 'bin\java.exe'
+    if (-not (Test-Path $javaExe)) { throw "Downloaded JDK does not contain java executable: $javaExe" }
+    $verOut = & $javaExe -version 2>&1 | Select-Object -First 1
+    Write-Host "Downloaded JDK java -version: $verOut"
+
+    # Set for this process
+    $env:JAVA_HOME = $javaHome
+    $env:Path = (Join-Path $javaHome 'bin') + ';' + $env:Path
 }
 
 function Ensure-Gradle {
