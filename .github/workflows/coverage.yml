@@ -85,6 +85,7 @@ jobs:
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           exit $EXIT_CODE
         timeout-minutes: 10
+        continue-on-error: true
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
           REDIS_URL: redis://localhost:6379

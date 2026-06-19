@@ -144,7 +144,7 @@ export class CachedQueryManager {
       };
       
       // Set main cache entry with TTL
-      await this.redis.setex(
+      await this.redis.setEx(
         key,
         options.ttlSeconds,
         JSON.stringify(entry),

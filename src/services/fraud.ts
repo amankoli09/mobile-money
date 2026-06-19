@@ -161,7 +161,7 @@ export class FraudService {
           '+1234567890', '+0987654321', '+5555555555'
         ];
         this.highRiskNumbers = new Set(sampleNumbers);
-        await redisClient.setex('fraud:high_risk_numbers', 3600, JSON.stringify(sampleNumbers));
+        await redisClient.setEx('fraud:high_risk_numbers', 3600, JSON.stringify(sampleNumbers));
       }
     } catch (error) {
       console.error('Failed to load high risk numbers:', error);
