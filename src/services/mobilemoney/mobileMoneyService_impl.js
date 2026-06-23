@@ -82,6 +82,7 @@ function loadProvider(key) {
                         case "vodacom": return [3 /*break*/, 10];
                         case "mock": return [3 /*break*/, 8];
                         case "orange_madagascar": return [3 /*break*/, 12];
+                        case "sms_portal": return [3 /*break*/, 14];
                     }
                     return [3 /*break*/, 7];
                 case 1: return [4 /*yield*/, Promise.resolve().then(function () { return require("./providers/mtn"); })];
@@ -109,6 +110,10 @@ function loadProvider(key) {
                 case 13:
                     mod = _b.sent();
                     return [2 /*return*/, new mod.OrangeMadagascarProvider()];
+                case 14: return [4 /*yield*/, Promise.resolve().then(function () { return require("./providers/smsPortalProvider"); })];
+                case 15:
+                    mod = _b.sent();
+                    return [2 /*return*/, new mod.SmsPortalProvider()];
             }
         });
     });
