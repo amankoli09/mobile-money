@@ -1,5 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { pool } from '../config/database';
+import { SupportedCurrency, currencyService, BASE_CURRENCY } from './currency';
 
 /**
  * Double-Entry Ledger Service
@@ -64,8 +65,69 @@ export class LedgerService {
     description: string,
     entries: LedgerEntry[],
     transactionId?: string,
-    postedBy?: string
+    postedBy?: string,
+    currency?: SupportedCurrency,
+    conversionRate?: number
   ): Promise<PostedEntry[]> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Validate entries
+      if (!entries || entries.length < 2) {
+        throw new Error('At least 2 entries required for double-entry');
+      }
+
+      // Calculate totals for client-side validation
+      const totalDebits = entries.reduce((sum, e) => sum + (e.debit_amount || 0), 0);
+      const totalCredits = entries.reduce((sum, e) => sum + (e.credit_amount || 0), 0);
+
+      if (Math.abs(totalDebits - totalCredits) > 0.0000001) {
+        throw new Error(
+          `Transaction not balanced: debits=${totalDebits} credits=${totalCredits}`
+        );
+      }
+
+      // Attach currency metadata if provided
+      const enrichedEntries = (currency && conversionRate)
+        ? entries.map(e => ({
+            ...e,
+            metadata: {
+              ...(e.metadata || {}),
+              currency,
+              conversionRate,
+            },
+          }))
+        : entries;
+
+      // Call the database function to post atomically
+      const result = await client.query(
+        `SELECT * FROM post_transaction($1, $2, $3, $4, $5)`,
+        [
+          referenceNumber,
+          description,
+          transactionId || null,
+          postedBy || null,
+          JSON.stringify(enrichedEntries)
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      return result.rows.map(row => ({
+        entry_id: row.entry_id,
+        account_code: row.account_code,
+        debit: parseFloat(row.debit),
+        credit: parseFloat(row.credit)
+      }));
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
     const client = await this.pool.connect();
     
     try {
@@ -109,51 +171,70 @@ export class LedgerService {
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
-    } finally {
-      client.release();
-    }
-  }
 
   /**
-   * Post a deposit transaction
-   * Debit: Mobile Money Float (asset increases)
-   * Credit: Customer Balances (liability increases)
+   * Post a deposit transaction with currency conversion.
+   * `amount` and `fee` are in the original `currency`.
+   * The amounts are converted to base currency (USD) for ledger accounting.
+   * Metadata records original currency and conversion rate.
    */
-  async postDeposit(
+  async postDepositWithCurrency(
     amount: number,
     fee: number,
+    currency: SupportedCurrency,
     referenceNumber: string,
     transactionId: string,
     userId: string
   ): Promise<PostedEntry[]> {
+    // Convert amounts to base currency using CurrencyService
+    const amountConversion = currencyService.convert(amount, currency, BASE_CURRENCY);
+    const feeConversion = currencyService.convert(fee, currency, BASE_CURRENCY);
+
     const entries: LedgerEntry[] = [
       {
         account_code: '1100', // Mobile Money Float
-        debit_amount: amount,
-        description: 'Customer deposit received'
+        debit_amount: amountConversion.convertedAmount,
+        description: 'Customer deposit received',
+        metadata: {
+          originalAmount: amount,
+          originalCurrency: currency,
+          conversionRate: amountConversion.rate,
+        },
       },
       {
         account_code: '2000', // Customer Balances
-        credit_amount: amount - fee,
-        description: 'Customer balance credited'
-      }
+        credit_amount: amountConversion.convertedAmount - feeConversion.convertedAmount,
+        description: 'Customer balance credited',
+        metadata: {
+          originalAmount: amount - fee,
+          originalCurrency: currency,
+          conversionRate: amountConversion.rate,
+        },
+      },
     ];
 
     // Add fee revenue if applicable
     if (fee > 0) {
       entries.push({
         account_code: '4100', // Deposit Fee Revenue
-        credit_amount: fee,
-        description: 'Deposit fee earned'
+        credit_amount: feeConversion.convertedAmount,
+        description: 'Deposit fee earned',
+        metadata: {
+          originalAmount: fee,
+          originalCurrency: currency,
+          conversionRate: feeConversion.rate,
+        },
       });
     }
 
     return this.postTransaction(
       referenceNumber,
-      `Deposit: ${amount} (fee: ${fee})`,
+      `Deposit: ${amount} ${currency} (fee: ${fee} ${currency})`,
       entries,
       transactionId,
-      userId
+      userId,
+      currency,
+      amountConversion.rate
     );
   }
 
