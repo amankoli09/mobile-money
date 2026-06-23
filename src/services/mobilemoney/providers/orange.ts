@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import * as fs from "fs";
 import * as path from "path";
+import { getConfigValue } from "../../../config/appConfig";
 import logger from "../../../utils/logger";
 
 type OrangeOperation = "payment" | "payout";
@@ -255,7 +256,11 @@ export class OrangeProvider {
           DEFAULT_REFRESH_SKEW_MS,
       ),
       requestTimeoutMs: Number(
-        options.requestTimeoutMs ?? process.env.REQUEST_TIMEOUT_MS ?? 30000,
+        options.requestTimeoutMs ??
+          getConfigValue('orange.requestTimeoutMs') ??
+          process.env.ORANGE_REQUEST_TIMEOUT_MS ??
+          process.env.REQUEST_TIMEOUT_MS ??
+          30000,
       ),
       maxAttempts: Number(
         options.maxAttempts ?? process.env.ORANGE_MAX_ATTEMPTS ?? 3,
@@ -279,7 +284,10 @@ export class OrangeProvider {
       throw new Error("Orange request URL is required");
     }
 
-    const config: AxiosRequestConfig = { ...request };
+    const config: AxiosRequestConfig = {
+      ...request,
+      timeout: request.timeout ?? this.config.requestTimeoutMs,
+    };
     delete config.method;
     delete config.url;
 
