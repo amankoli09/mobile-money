@@ -1,3 +1,4 @@
+import logger from "../../utils/logger";
 import * as StellarSdk from "stellar-sdk";
 import { getStellarServer, getNetworkPassphrase } from "../../config/stellar";
 import dotenv from "dotenv";
@@ -134,7 +135,7 @@ export class StellarService {
 
       return response;
     } catch (error) {
-      console.error("Stellar fee-bump submission failed:", error);
+      logger.error("Stellar fee-bump submission failed:", error);
       throw error;
     }
   }
@@ -288,7 +289,7 @@ export class StellarService {
 
       return this.assetService.getAssetBalance(address, asset);
     } catch (error) {
-      console.error("Balance fetch failed", error);
+      logger.error("Balance fetch failed", error);
       return "0";
     }
   }
@@ -393,7 +394,7 @@ export class StellarService {
 
       return result;
     } catch (error) {
-      console.error("Failed to fetch transaction history:", error);
+      logger.error("Failed to fetch transaction history:", error);
       throw error;
     }
   }
@@ -428,7 +429,7 @@ export class StellarService {
       await this.server.submitTransaction(transaction);
       console.log("Clawback capability enabled on issuance account");
     } catch (error) {
-      console.error("Failed to enable clawback capability:", error);
+      logger.error("Failed to enable clawback capability:", error);
       throw error;
     }
   }
@@ -488,7 +489,7 @@ export class StellarService {
 
       return { hash: response.hash };
     } catch (error) {
-      console.error("Stellar clawback failed:", error);
+      logger.error("Stellar clawback failed:", error);
       // Log failed attempt
       await this.logClawbackToAudit(null, fromAddress, amount, adminId, false, error);
       throw error;
@@ -529,7 +530,7 @@ export class StellarService {
         ]
       );
     } catch (auditError) {
-      console.error("Failed to write clawback audit log:", auditError);
+      logger.error("Failed to write clawback audit log:", auditError);
       // Don't throw - audit logging failure shouldn't break the operation
     }
   }

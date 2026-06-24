@@ -1,3 +1,4 @@
+import logger from "./utils/logger";
 // Initialize centralized configuration first
 import "./config/init";
 
@@ -249,7 +250,7 @@ app.get("/ready", async (_req: Request, res: Response) => {
     await pool.query("SELECT 1");
     checks.database = "ok";
   } catch (err) {
-    console.error("Database check failed", err);
+    logger.error("Database check failed", err);
     allReady = false;
   }
 
@@ -262,7 +263,7 @@ app.get("/ready", async (_req: Request, res: Response) => {
       allReady = false;
     }
   } catch (err) {
-    console.error("Redis check failed", err);
+    logger.error("Redis check failed", err);
     allReady = false;
   }
 
@@ -519,7 +520,7 @@ async function gracefulShutdown(signal: NodeJS.Signals): Promise<void> {
     console.log("[Shutdown] Graceful shutdown complete");
     process.exit(0);
   } catch (error) {
-    console.error("[Shutdown] Shutdown sequence failed", error);
+    logger.error("[Shutdown] Shutdown sequence failed", error);
     process.exit(1);
   }
 }
@@ -593,7 +594,7 @@ async function initializeRuntime(): Promise<void> {
     await scheduleProviderBalanceAlertJob();
     console.log("Provider balance alert queue initialized");
   } catch (err) {
-    console.error("Redis failed", err);
+    logger.error("Redis failed", err);
     console.warn("Distributed locks not available");
   }
 
