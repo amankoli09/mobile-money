@@ -156,6 +156,12 @@ const JOBS: JobConfig[] = [
     schedule: process.env.DATABASE_BACKUP_VERIFY_CRON || "0 3 * * *",
     handler: runDatabaseBackupVerifyJob,
   },
+  {
+    name: "sanction-sync",
+    // Daily at 1:00 AM - streams and indexes sanctions list updates, clears match cache
+    schedule: process.env.SANCTION_SYNC_CRON || "0 1 * * *",
+    handler: runSanctionSyncJob,
+  },
 ];
 
 async function runJob(job: JobConfig): Promise<void> {
